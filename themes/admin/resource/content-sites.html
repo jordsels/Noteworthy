@@ -20,7 +20,7 @@
 							<input class="input-medium" type="text" value="[SiteSEOTags]" id="txtSiteSEO" name="txtSiteSEO" maxlength="240" />
 						</div>
 						<div>
-							<input id="chkisDefault" type="checkbox" class="checkbox" checked="checked" name="chkisDefault" /> <label class="float-label" for="chkIsDefault">[lblChkDefault]</label><span style="margin-left: 10px;"><i>[lblChkDefaultB]</i></span>
+							<input id="chkisDefault" type="checkbox" class="checkbox" [SiteDefault] name="chkisDefault" /> <label class="float-label" for="chkIsDefault">[lblChkDefault]</label><span style="margin-left: 10px;"><i>[lblChkDefaultB]</i></span>
 						</div>
 
 						<hr />
@@ -257,6 +257,7 @@
 		<script type="text/javascript">
 			$(function(){
 				window.accessKey = "[ACCESSKEY]";
+				window.SiteID = "[DISP_SITEID]";
 				window.apiURL = "[API_URL]";
 				getNotebooks();
             });

@@ -461,12 +461,17 @@ class Settings extends Midori {
      */
     private function _saveSiteData() {
     	$isDefault = ($this->settings['chkisDefault'] == "on") ? 'Y' : 'N';
-    	$SiteID = nullInt( $this->settings['SiteID'] );
+    	$SiteID = nullInt( $this->settings['dispSiteID'], $this->settings['SiteID'] );
     	$RebuildCache = ( $this->settings['txtLocation'] != $this->settings['Location'] ) ? true : false;
+    	$HomeURL = NoNull( $this->settings['txtHomeURL'] );
+    	$apiURL = ( $HomeURL != "" ) ? "$HomeURL/api/" : "";
     	$CacheToken = "Site_$SiteID";
 	    $rVal = false;
 
 	    $data = array('require_key'		=> 'Y',
+
+	    			  'HomeURL'			=> $HomeURL,
+	    			  'api_url'			=> $apiURL,
 
 		              'Location'        => $this->settings['txtLocation'],
 		              'isDefault'       => $isDefault,
@@ -498,9 +503,44 @@ class Settings extends Midori {
 				$cache = fopen($HomeURL . $Page, "r");
 			}
 		}
+		
+		// Save the Site Master
+		$DefaultSite = -1;
+		if ( $isDefault ) { $DefaultSite = $SiteID; }
+		$rVal = $this->_saveSiteMaster( $DefaultSite );
 
-		// Return a Happy Boolean
-		return true;
+		// Return a Boolean Response
+		return $rVal;
+    }
+    
+    /**
+     *	Function Saves the Sites Master File and Returns a Boolean
+     */
+    private function _saveSiteMaster( $DefaultSite = -1 ) {
+    	$Sites = getSitesList();
+    	$data = array();
+
+	    if ( $DefaultSite >= 0 ) { $setDefault = true; }
+	    foreach ( $Sites as $SiteID ) {
+	    	$dtl = getSiteDetails($SiteID);
+		    $data[ $SiteID ] = $dtl['HomeURL'];
+		    if ( $DefaultSite < 0 && $dtl['isDefault'] == 'Y' ) {
+			    $DefaultSite = $SiteID;
+		    }
+		    saveSetting( "Site_$SiteID", 'isDefault', 'N' );
+	    }
+	    
+	    // Set the Default Accordingly
+	    saveSetting( "Site_$DefaultSite", 'isDefault', 'Y' );
+	    $data[$DefaultSite] = 'default';
+
+		// Record the Data Accordingly
+		foreach ( $data as $Key=>$Val ) {
+			saveSetting( 'SiteMaster', $Key, $Val );
+		}
+
+	    // Return a Happy Boolean
+	    return true;
     }
 
     /**

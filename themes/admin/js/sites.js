@@ -10,6 +10,7 @@ function checkAkismet( siteURL, akismetKey ) {
 
     // Set the Parameters
     params['accessKey'] = window.accessKey;
+    params['dispSiteID'] = window.SiteID;
     params['txtHomeURL'] = siteURL;
     params['txtAkismetKey'] = akismetKey;
 
@@ -21,8 +22,7 @@ function checkAkismet( siteURL, akismetKey ) {
             _canSubmit = true;
         },
         error: function (xhr, ajaxOptions, thrownError){
-            alert(xhr.status + ' | ' + thrownError);
-            _canSubmit = true;
+        	formatErrorMsg(xhr.status, thrownError, '');
         },
         dataType: "json"
     });
@@ -34,16 +34,13 @@ function parseResult( data ) {
 
 	if( typeof data.isGood != "undefined" ) {
 		if ( data.isGood == 'Y' ) {
-			result = true;
 			_errMsg = "<p>It's Good!</p>";
 		} else {
 			_errMsg = "<p>** API Key is Invalid. Please Confirm and Try Again. **</p>";
 		}
 	}
-	document.getElementById("akismet-err").innerHTML = _errMsg;
-
-    // Return the Parsed Timeline
-	return result;
+	formatErrorMsg(0, _errMsg, 'akismet-err');
+	return false;
 }
 
 function performUpdates() {
@@ -59,9 +56,10 @@ function performUpdates() {
     	}
 	}
 	// Ensure 'doComments' is Properly Set
-	params[ 'raWebCron' ] = findSelectionValue( 'doCron' );
-	params[ 'raComments' ] = findSelectionValue( 'doComments' );
-	params[ 'raTwitter' ] = findSelectionValue( 'doTwitter' );
+	params['raWebCron' ] = findSelectionValue( 'doCron' );
+	params['raComments'] = findSelectionValue( 'doComments' );
+	params['raTwitter' ] = findSelectionValue( 'doTwitter' );
+	params['dispSiteID'] = window.SiteID;
 	document.getElementById("return-msg").innerHTML = _dispDiv;
 
     $.ajax({
@@ -72,8 +70,7 @@ function performUpdates() {
             _canSubmit = true;
         },
         error: function (xhr, ajaxOptions, thrownError){
-            alert(xhr.status + ' | ' + thrownError);
-            _canSubmit = true;
+        	formatErrorMsg(xhr.status, thrownError, '');
         },
         dataType: "json"
     });
@@ -96,6 +93,7 @@ function performSocialUpdates() {
 	params[ 'chkSocShow03' ] = findSelectionValue( 'chkSocShow03' );
 	params[ 'chkSocShow04' ] = findSelectionValue( 'chkSocShow04' );
 	params[ 'chkSocShow05' ] = findSelectionValue( 'chkSocShow05' );
+	params['dispSiteID'] = window.SiteID;
 
 	// Ensure 'doComments' is Properly Set
 	document.getElementById("social-msg").innerHTML = _dispDiv;
@@ -108,8 +106,7 @@ function performSocialUpdates() {
             _canSubmit = true;
         },
         error: function (xhr, ajaxOptions, thrownError){
-            alert(xhr.status + ' | ' + thrownError);
-            _canSubmit = true;
+        	formatErrorMsg(xhr.status, thrownError, '');
         },
         dataType: "json"
     });
@@ -185,6 +182,7 @@ function checkEvernote( evernoteToken, useSandbox ) {
 
     // Set the Parameters
     params['accessKey'] = window.accessKey;
+    params['dispSiteID'] = window.SiteID;
     params['sandbox'] = useSandbox;
     params['ttoken'] = evernoteToken;
 
@@ -195,8 +193,7 @@ function checkEvernote( evernoteToken, useSandbox ) {
             parseEvernoteResult( data.data );
         },
         error: function (xhr, ajaxOptions, thrownError){
-            alert(xhr.status + ' | ' + thrownError);
-            _canSubmit = true;
+        	formatErrorMsg(xhr.status, thrownError, '');
         },
         dataType: "json"
     });
@@ -222,6 +219,7 @@ function getNotebooks() {
 
     // Set the Parameters
     params['accessKey'] = window.accessKey;
+    params['dispSiteID'] = window.SiteID;
 
     $.ajax({
         url: apiPath + method,
@@ -230,7 +228,7 @@ function getNotebooks() {
             parseEvernoteNotebooks( data.data );
         },
         error: function (xhr, ajaxOptions, thrownError){
-            alert(xhr.status + ' | ' + thrownError);
+        	formatErrorMsg(xhr.status, thrownError, '');
         },
         dataType: "json"
     });
@@ -273,6 +271,7 @@ function triggerCron( NotebookList ) {
 
     // Set the Parameters
     params['accessKey'] = window.accessKey;
+    params['dispSiteID'] = window.SiteID;
 
     $.ajax({
         url: apiPath + method,
@@ -281,7 +280,7 @@ function triggerCron( NotebookList ) {
             parseCronMsg( data.data );
         },
         error: function (xhr, ajaxOptions, thrownError){
-            alert(xhr.status + ' | ' + thrownError);
+        	formatErrorMsg(xhr.status, thrownError, '');
         },
         dataType: "json"
     });
@@ -314,6 +313,7 @@ function setSelectedNotebooks( NotebookList ) {
     // Set the Parameters
     params['accessKey'] = window.accessKey;
     params['guidlist'] = NotebookList;
+    params['dispSiteID'] = window.SiteID;
 
     $.ajax({
         url: apiPath + method,
@@ -322,7 +322,7 @@ function setSelectedNotebooks( NotebookList ) {
             parseSelectedNotebooks( data.data );
         },
         error: function (xhr, ajaxOptions, thrownError){
-            alert(xhr.status + ' | ' + thrownError);
+        	formatErrorMsg(xhr.status, thrownError, '');
         },
         dataType: "json"
     });
@@ -343,4 +343,15 @@ function parseSelectedNotebooks( data ) {
 	}
 	_dispDiv = _dispDiv.replace("[MESSAGE]", _errMsg);
 	document.getElementById( "notebook-msg" ).innerHTML = _dispDiv;
+}
+
+
+function formatErrorMsg(ErrorCode, ErrorMsg, ObjectID) {
+	if ( ErrorMsg != "") {
+		if ( ObjectID == "" ) {
+			alert(ErrorCode + ' | ' + ErrorMsg);
+		} else {
+			document.getElementById( ObjectID ).innerHTML = '<div class="sys-message sys-error"><p>' + ErrorMsg + '</p></div>';
+		}
+	}
 }

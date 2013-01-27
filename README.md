@@ -6,7 +6,7 @@ For more documentation, be sure to [check out the Wiki](https://github.com/matig
 
 ##General Requirements
 You will need:
-* a web server running PHP 5.0 or higher
+* a web server running PHP 5.3 or higher (5.0 if you don't need Evernote Integration)
 * MySQL 5.0 or higher
 
 ##Optional Components
@@ -28,6 +28,9 @@ Installation is pretty straight-forward, as Noteworthy will do all of the work. 
 * Let Noteworthy download the Evernote notebooks you've selected
 
 Noteworthy can be installed in either a root domain (website.com), subdomain (abc.website.com), or a subfolder (website.com/blog)
+
+####Using a Shared Host? Read This Part:
+Many shared hosts have configured their servers with some very strict settings. As a result, you may run into some problems from time to time. Be sure to read the Wiki on Shared Hosts FAQs to find possible solutions to your problems. If something's not written, you can make a trouble ticket or contact me directly for a solution.
 
 ##Disclaimers
 Do **NOT** share your Evernote API keys with anybody. Sharing your API Key grants that person full access to your Evernote account which, if you use Evernote like I do, could be a terrifying prospect. This is why I'm sharing Noteworthy with you rather than providing a hosted solution that you could use.

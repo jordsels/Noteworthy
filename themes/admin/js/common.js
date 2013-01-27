@@ -64,11 +64,12 @@ jQuery(function($) {
             parseResult( data.data );
         },
         error: function (xhr, ajaxOptions, thrownError){
-            alert(xhr.status + ' | ' + thrownError);
+        	formatErrorMsg(xhr.status, thrownError, '');
         },
         dataType: "json"
     });
   }
+
   function parseResult( data ) {
 	var _dispMsg = "** API Error**";
 
@@ -86,6 +87,16 @@ jQuery(function($) {
   }
   // Check the Cron Status Every 5 Seconds
   setInterval(checkCron, 5000);
+
+  function formatErrorMsg(ErrorCode, ErrorMsg, ObjectID) {
+	  if ( ErrorMsg != "") {
+		  if ( ObjectID == "" ) {
+			  alert(ErrorCode + ' | ' + ErrorMsg);
+		  } else {
+			  document.getElementById( ObjectID ).innerHTML = '<div class="sys-message sys-error"><p>' + ErrorMsg + '</p></div>';
+		  }
+	  }
+  }
 
   // open/close boxes
   $('.show_hide span').click(function(elem){

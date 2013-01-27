@@ -1313,8 +1313,6 @@ class Content extends Midori {
 					$rVal = $data['HTML'];
 				}
 			}
-		} else {
-			print_r( "Skipping: $FileName \r\n" );
 		}
 
 		// Return the HTML (if Applicable)

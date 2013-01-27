@@ -28,7 +28,8 @@ class Midori {
         unset( $sets );
 
         if ( $this->_checkFolders() ) {
-	        $this->Site = getSiteDetails();
+        	$SiteID = getSiteID();
+	        $this->Site = getSiteDetails($SiteID);
         }
         
         // Add the Site Details to the General Settings

@@ -22,7 +22,7 @@ class miTheme extends theme_main {
         // Set the Resource Prefix
         $this->settings['resource_prefix'] = 'desktop';
         $this->messages = getLangDefaults( $this->settings['DispLang'] );
-        
+
         // Prep the Content
         $this->content = new Content( $settings, dirname(__FILE__) );
 
@@ -190,7 +190,10 @@ class miTheme extends theme_main {
      *      Returns the Array
      */
     private function _collectPageData() {
+    	$SiteID = NoNull( $this->settings['dispSiteID'], $this->settings['SiteID'] );
     	$PostCount = (!is_numeric( $this->content->getReadableURI() )) ? 5 : 9;
+    	$ENDataToken = "ENData";
+    	if ( nullInt($SiteID) > 0 ) { $ENDataToken .= "_$SiteID"; }
         $ReplStr = array( '[HOMEURL]'	  => $this->settings['HomeURL'],
         				  '[API_URL]'	  => $this->settings['api_url'],
                       	  '[SITEURL]'	  => $this->settings['URL'],
@@ -202,8 +205,8 @@ class miTheme extends theme_main {
                           '[APP_VER]'     => APP_VER,
                           '[GENERATOR]'   => GENERATOR,
                           '[TOKEN]'		  => NoNull($this->settings['token']),
-                          '[EN_TOKEN]'	  => readSetting('core', 'DevToken'),
-                          '[EN_SANDBOX]'  => readSetting('core', 'UseSandbox'),
+                          '[EN_TOKEN]'	  => readSetting($ENDataToken, 'DevToken'),
+                          '[EN_SANDBOX]'  => readSetting($ENDataToken, 'UseSandbox'),
                           '[ACCESSKEY]'	  => NoNull($this->settings['api_key']),
                           '[LANG_CD]'     => strtoupper($this->messages['lang_cd']),
                           '[ERROR_MSG]'   => $this->_getPageError(),
@@ -211,7 +214,8 @@ class miTheme extends theme_main {
                           '[CSS_DIR]'     => CSS_DIR,
                           '[IMG_DIR]'     => IMG_DIR,
                           '[JS_DIR]'      => JS_DIR,
-                          
+                          '[DISP_SITEID]' => $SiteID,
+
                           /* User Data */
                           '[USERBLOCK]'	  => $this->_getUserBlock(),
                           '[USERNAME]'	  => readSetting('core', 'username'),
@@ -219,7 +223,7 @@ class miTheme extends theme_main {
                           /* Body Content */
                           '[NAVIGATION]'  => $this->_getNavigationMenu(),
                           '[PAGE_TITLE]'  => $this->_getPageTitle(),
-                          '[EXTEND_HDR]'  => '',                          
+                          '[EXTEND_HDR]'  => $this->_getExtendedHeaderInfo(),                          
                          );
 
         // Read In the Language Strings
@@ -236,12 +240,15 @@ class miTheme extends theme_main {
 	        }
         }
 
-        // Add any Extra Data
+        // Add any Extra Data (Replacing Anything That Might Already Exist)
         $Extras = $this->_getExtraContent();
         foreach( $Extras as $key=>$val ) {
+        	/*
             if ( !array_key_exists( $key, $ReplStr ) ) {
                 $ReplStr[ $key ] = $val;
             }
+            */
+            $ReplStr[ $key ] = $val;
         }
 
         // Read the Appropriate Template File if the Page Requested is Valid
@@ -312,16 +319,12 @@ class miTheme extends theme_main {
         $rVal = '';
         
         switch ( NoNull($this->settings['PgSub1']) ) {
-            case 'contact':
-                $rVal = tabSpace(4) . "<link rel=\"stylesheet\" href=\"" . CSS_DIR . "/contact.css\" type=\"text/css\" />";
-                break;
-
             case 'dashboard':
             case '':
             	if ( YNBool($this->settings['isLoggedIn']) ) {
 	            	$rVal = '<link rel="stylesheet" href="' . CSS_DIR . '/prettyPhoto.css" type="text/css" /><!-- lightbox stylesheet -->\r\n' .
-	            			'<link rel="stylesheet" href="' . JS_DIR . '/markitup/skins/simple/style.css" type="text/css" /><!-- WYSWYG editor stylesheet -->\r\n' .
-	            			'<link rel="stylesheet" href="' . JS_DIR . '/markitup/sets/default/style.css" type="text/css" /><!-- WYSWYG editor stylesheet -->\r\n' .
+	            			'<link rel="stylesheet" href="' . JS_DIR  . '/markitup/skins/simple/style.css" type="text/css" /><!-- WYSWYG editor -->\r\n' .
+	            			'<link rel="stylesheet" href="' . JS_DIR  . '/markitup/sets/default/style.css" type="text/css" /><!-- WYSWYG editor -->\r\n' .
 	            			'<link rel="stylesheet" href="' . CSS_DIR . '/jquery-ui.custom.css" type="text/css" /><!-- jQuery UI stylesheet -->\r\n' .
 	            			'<link rel="stylesheet" href="' . CSS_DIR . '/font-awesome.css" />\r\n' .
 	            			'<link rel="stylesheet" href="' . CSS_DIR . '/font-awesome.less" />';
@@ -341,18 +344,30 @@ class miTheme extends theme_main {
      *      in the $ReplStr Array
      */
     private function _getExtraContent() {
+    	$SiteID = NoNull( $this->settings['dispSiteID'], $this->settings['SiteID'] );
+    	$ENDataToken = "ENData";
+    	if ( nullInt($SiteID) > 0 ) { $ENDataToken .= "_$SiteID"; }
         $rVal = array( '[ARCHIVE-LIST]' => '',
                        '[SOCIAL-LINK]'  => '',
                        '[RESULTS]'      => '',
                        '[SYSTEM-MSGS]'	=> '',
                        '[ADMINURL]'		=> $this->settings['HomeURL'] . '/' . $this->settings['PgRoot'],
-                       '[NBOOKCOUNT]'	=> $this->_getSelectedNotebookCount(),
+                       '[NBOOKCOUNT]'	=> $this->_getSelectedNotebookCount( $SiteID ),
                       );
 
         switch ( $this->settings['PgSub1'] ) {
             case 'sites':
+            	$SiteID = nullInt( $this->settings['dispSiteID'], $this->settings['SiteID'] );
+            	$SiteInfo = getSiteDetails( $SiteID );
+
             	// Website Settings
-            	$doComments = YNBool( $this->settings['doComments'] );
+            	$rVal['[HOMEURL]'] = $SiteInfo['HomeURL'];
+            	$rVal['[SiteName]'] = $SiteInfo['SiteName'];
+            	$rVal['[SiteDescr]'] = $SiteInfo['SiteDescr'];
+            	$rVal['[SiteSEOTags]'] = $SiteInfo['SiteSEOTags'];
+            	$rVal['[SiteDefault]'] = ($SiteInfo['isDefault'] == 'Y') ? 'checked="checked"' : '';
+
+            	$doComments = YNBool( $SiteInfo['doComments'] );
             	$rVal['[raNoCommentChk]'] = ( !$doComments ) ? 'checked="checked"' : '';
             	$rVal['[raGoCommentChk]'] = (  $doComments ) ? 'checked="checked"' : '';
             	$rVal['[dVis]'] = ( $doComments ) ? 'block' : 'none';
@@ -364,9 +379,9 @@ class miTheme extends theme_main {
             		$KeySuffix = str_pad((int) $i, 2, "0", STR_PAD_LEFT);
 	            	foreach ( $SocItems as $Item ) {
 	            		$KeyName = $Item . $KeySuffix;
-		            	$rVal[ "[$KeyName]" ] = $this->settings[ $KeyName ];
+		            	$rVal[ "[$KeyName]" ] = $SiteInfo[ $KeyName ];
 	            	}
-	            	if ( $this->settings[ "SocShow$KeySuffix" ] == "Y" ) {
+	            	if ( $SiteInfo[ "SocShow$KeySuffix" ] == "Y" ) {
 		            	$rVal[ "[SocChk$KeySuffix]" ] = "checked=\"checked\"";
 	            	} else {
 		            	$rVal[ "[SocChk$KeySuffix]" ] = "";
@@ -374,19 +389,19 @@ class miTheme extends theme_main {
             	}
 
             	// Cron Settings
-            	$doCron = YNBool( $this->settings['doWebCron'] );
+            	$doCron = YNBool( $SiteInfo['doWebCron'] );
             	$rVal['[raNoCronChk]'] = ( !$doCron ) ? 'checked="checked"' : '';
             	$rVal['[raDoCronChk]'] = (  $doCron ) ? 'checked="checked"' : '';
 
             	// Twitter Settings
-            	$doTwitter = YNBool( $this->settings['doTwitter'] );
+            	$doTwitter = YNBool( $SiteInfo['doTwitter'] );
             	$rVal['[raNoTweetChk]'] = ( !$doTwitter ) ? 'checked="checked"' : '';
             	$rVal['[raDoTweetChk]'] = (  $doTwitter ) ? 'checked="checked"' : '';
             	$rVal['[tVis]'] = ( $doTwitter ) ? 'block' : 'none';
-            	$rVal['[TwitName]'] = NoNull($this->settings['twitName']);
+            	$rVal['[TwitName]'] = NoNull($SiteInfo['twitName']);
 
             	// Evernote Settings
-            	$UseSandbox = NoNull($this->setting['sandbox'], readSetting( 'core', 'UseSandbox' ));
+            	$UseSandbox = NoNull($SiteInfo, readSetting( $ENDataToken, 'UseSandbox' ));
             	if ( $UseSandbox != 'N' ) { $UseSandbox = 'Y'; }
 
             	// Set the Various Values for Sandbox Usage
@@ -395,6 +410,7 @@ class miTheme extends theme_main {
                 $rVal['[note-sandboxStyle]'] = ($UseSandbox == 'N') ? 'style="display: none;"' : '';
                 $rVal['[note-productionStyle]'] = ($UseSandbox == 'Y') ? 'style="display: none;"' : '';
                 $rVal['[iVis]'] = 'style="display: none;';
+                
 
                 if ( $rVal['[NBOOKCOUNT]'] > 0 ) {
 	                $rVal['[iVis]'] = "";
@@ -504,6 +520,33 @@ class miTheme extends theme_main {
     }
 
     /**
+     * Function returns an array containing a list of all the sites currently configured as well
+     *		as the option to make a new site.
+     */    
+    private function _getSitesList() {
+	    $rVal = array();
+	    $MaxID = 0;
+
+	    // Collect the List of Sites
+	    $Sites = getSitesList();
+	    foreach ( $Sites as $Site ) {
+		    $dtl = getSiteDetails( $Site );
+
+		    // Add the Appropriate Information
+		    if ( $dtl['HomeURL'] != "" ) {
+			    $rVal[$dtl['SiteID']] = $dtl['SiteName'];
+			    if ( nullInt($dtl['SiteID']) > $MaxID ) { $MaxID = nullInt($dtl['SiteID']); }
+		    }
+	    }
+
+	    // Append the Option to Create a New Site
+	    $rVal[ ($MaxID + 1) ] = 'Create New Site';
+
+	    // Return the Array of Sites
+	    return $rVal;
+    }
+
+    /**
      * Function returns the Administration Panel. Should the file be older than the Cache limit,
      *		or a fresh one is requested, the menu will be rebuilt and saved accordingly.
      */
@@ -518,7 +561,9 @@ class miTheme extends theme_main {
             			   'sites'		=> array('icon' 	=> "icon-pencil",
             									 'current'	=> "N",
             									 'class'	=> "current_menu_item",
-            									 'label'	=> $this->messages['lblSites'] ),
+            									 'label'	=> $this->messages['lblSites'],
+            									 'subs'		=> $this->_getSitesList(),
+            									 			   ),
             			   'settings'	=> array('icon' 	=> "icon-cogs",
             									 'current'	=> "N",
             									 'class'	=> "current_menu_item",
@@ -537,7 +582,7 @@ class miTheme extends theme_main {
             	if ( array_key_exists('subs', $dtl) ) {
             		$SubList = "<ul>";
 	            	foreach ( $dtl['subs'] as $subUrl=>$subDtl ) {
-		            	$SubList .= '<li><a href="' . $FullURL . '?siteID=' . $subUrl . '"><span class="nav-icon icon-pencil"></span> ' . $subDtl . '</a></li>';
+		            	$SubList .= '<li><a href="' . $FullURL . '?dispSiteID=' . $subUrl . '"><span class="nav-icon icon-pencil"></span> ' . $subDtl . '</a></li>';
 	            	}
 	            	$SubList .= "</ul>";
             	}
@@ -548,7 +593,7 @@ class miTheme extends theme_main {
             	$rVal .= '<li' . $isCurrent . '><a href="' . $FullURL . '"><span class="nav-icon ' . $dtl['icon'] . '"></span> ' . $dtl['label'] . '</a>' . $SubList . '</li>';
 	        }
         }
-        
+
         if ( $rVal != "" ) {
 	        $rVal = tabSpace( 4) . "<div id=\"nav-container\">\r\n" .
 	        		tabSpace( 6) . "<div class=\"container_16 sticky\" id=\"navigation\">\r\n" .
@@ -587,10 +632,11 @@ class miTheme extends theme_main {
 	    return $rVal;
     }
     
-    private function _getSelectedNotebookCount() {
-	    $UseSandbox = NoNull(readSetting( 'core', 'UseSandbox' ), 'Y');
+    private function _getSelectedNotebookCount( $SiteID ) {
+    	$CacheToken = "ENData_$SiteID";
+	    $UseSandbox = NoNull(readSetting( $CacheToken, 'UseSandbox' ), 'Y');
 	    $isProd = ( $UseSandbox == 'Y' ) ? '_sb' : '_prod';
-	    $TokenFile = "core_notebooks$isProd";
+	    $TokenFile = $CacheToken . "_notebooks$isProd";
 	    $rVal = 0;
 
 	    $data = readSetting( $TokenFile, '*');

@@ -5,10 +5,6 @@
  * @copyright 2012
  * 
  * Class contains extended Classes for Evernote
- * 
- * Change Log
- * ----------
- * 2012.12.04 - Created Class (J2fi)
  */
 require_once( LIB_DIR . '/functions.php');
 

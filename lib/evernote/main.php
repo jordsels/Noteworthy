@@ -5,10 +5,6 @@
  * @copyright 2012
  * 
  * Class contains the rules and methods required for Evernote Handling
- * 
- * Change Log
- * ----------
- * 2012.10.07 - Created Class (J2fi)
  */
 define('EVER_DIR', LIB_DIR . '/evernote');
 require_once( LIB_DIR . '/functions.php');
@@ -109,24 +105,32 @@ class evernote {
      *	Definition: Is API Key required? Yes? Do we have it? Yes? Matches?
      */
     private function _canProceed() {
-	    $UseSandbox = NoNull($this->setting['sandbox'], readSetting( 'core', 'UseSandbox' ));
+    	$CacheToken = "ENData";
+    	$SiteID = nullInt($this->settings['dispSiteID'], $this->settings['SiteID']);
+    	if ( $SiteID > 0 ) { $CacheToken .= "_$SiteID"; }
+	    $UseSandbox = NoNull($this->settings['sandbox'], readSetting( $CacheToken, 'UseSandbox' ));
 	    if ( $UseSandbox != 'N' ) { $UseSandbox = 'Y'; }
 	    $HostName = ( $UseSandbox == 'Y' ) ? 'sandbox.evernote.com' : 'www.evernote.com';
 	    $isProd = ( $UseSandbox == 'Y' ) ? '_sb' : '_prod';
 	    $ErrCount = 0;
 
+	    writeNote( "Evernote->_canProceed(): [SiteID] => $SiteID" );
 	    if ( BoolYN($this->settings['EN_ENABLED']) ) {
-			$data = array( 'EVERNOTE_HOST'			=> $HostName,
-	                       'EVERNOTE_SCHEME'		=> 'https',
-	                       'EVERNOTE_PORT'			=> 443,
-	                       'DEVELOPER_TOKEN'		=> readSetting( 'core', 'DevToken' ),
-	                       'EVERNOTE_POINTER'		=> $isProd,
-	                       'noteStoreOK'			=> false,
-	                       'userStoreOK'			=> false,
+			$data = array( 'EVERNOTE_HOST'		=> $HostName,
+	                       'EVERNOTE_SCHEME'	=> 'https',
+	                       'EVERNOTE_PORT'		=> 443,
+	                       'DEVELOPER_TOKEN'	=> readSetting( $CacheToken, 'DevToken' ),
+	                       'EVERNOTE_POINTER'	=> $isProd,
+	                       'noteStoreOK'		=> false,
+	                       'userStoreOK'		=> false,
+	                       'CACHE_TOKEN'		=> $CacheToken,
+	                       'NOTEBOOK_TOKEN'		=> $CacheToken . '_notebooks' . $isProd,
+	                       'NOTES_TOKEN'		=> $CacheToken . '_notes' . $isProd,
 	                       );
 
 	    	// Add the Configuration to the Settings Array
 	    	foreach( $data as $key=>$val ) {
+	    		writeNote( "Evernote->_canProceed(): [$key] => $val" );
 		    	$this->settings[ $key ] = $val;
 	    	}
 
@@ -140,6 +144,7 @@ class evernote {
     }
     
     private function _saveUserData( $Key, $Value ) {
+    	$CacheToken = $this->settings['CACHE_TOKEN'];
 	    switch ( $Key ) {
 		    case 'id':
 		    case 'username':
@@ -242,7 +247,8 @@ class evernote {
 
 	    if ( $this->settings['ttoken'] != '' ) {
 	    	writeNote( "Testing Token: " . $this->settings['ttoken'] );
-		    $splitter = array();
+	    	$CacheToken = $this->settings['CACHE_TOKEN'];
+	    	$splitter = array();
 		    $isOK = true;
 
 	    	// Validate the Token Value Passed
@@ -256,7 +262,7 @@ class evernote {
 	    	}
 	    	
 	    	// Set whether we should use the Sandbox or Production Servers
-	    	saveSetting( 'core', 'UseSandbox', NoNull($this->settings['sandbox'], 'Y') );
+	    	saveSetting( $CacheToken, 'UseSandbox', NoNull($this->settings['sandbox'], 'Y') );
 
 	    	// Try to Retrieve the User Data if the H Token Exists
 	    	if ( in_array('A=en-devtoken', $splitter) && $isOK ) {
@@ -266,7 +272,7 @@ class evernote {
 		    	foreach ( $rVal as $key=>$val ) {
 			    	$this->_saveUserData( $key, $val );
 		    	}
-		    	saveSetting( 'core', 'DevToken', $this->settings['ttoken'] );
+		    	saveSetting( $CacheToken, 'DevToken', $this->settings['ttoken'] );
 
 	    	} else {
 	    		writeNote( "Invalid Token Provided: [" . $this->settings['ttoken'] . "]" );
@@ -286,7 +292,8 @@ class evernote {
 	 * Function Returns the NoteStore Shard
 	 */
 	private function _getNoteStoreShard() {
-		$rVal = readSetting( 'core', 'noteStoreShard' . $this->settings['EVERNOTE_POINTER'] );
+		$CacheToken = $this->settings['CACHE_TOKEN'];
+		$rVal = readSetting( $CacheToken, 'noteStoreShard' . $this->settings['EVERNOTE_POINTER'] );
 
 		// If We Don't Have a Shard, Get One
 		if ( $rVal == '' ) {
@@ -297,7 +304,7 @@ class evernote {
 			        $noteStoreShard = str_replace($this->settings['EVERNOTE_SCHEME'] . '://' . $this->settings['EVERNOTE_HOST'], '', $noteStoreURL);
 	
 			        if ( $noteStoreShard != '' ) {
-			        	saveSetting( 'core', 'noteStoreShard' . $this->settings['EVERNOTE_POINTER'], NoNull($noteStoreShard) );
+			        	saveSetting( $CacheToken, 'noteStoreShard' . $this->settings['EVERNOTE_POINTER'], NoNull($noteStoreShard) );
 				        $rVal = $noteStoreShard;
 			        }
 		        }
@@ -361,16 +368,16 @@ class evernote {
 	private function _setSelectedNotebooks() {
 		$NotebookGUIDs = NoNull($this->settings['guidlist']);
 		$rVal = array();
-		
+
 		if ( $NotebookGUIDs != "" ) {
-			$settingKey = 'core_notebooks' . $this->settings['EVERNOTE_POINTER'];
+			$CacheToken = $this->settings['NOTEBOOK_TOKEN'];
 			$guidList = explode('|', $NotebookGUIDs);
 			$Notebooks = array();
 
-			clearSettings( $settingKey );
+			clearSettings( $CacheToken );
 			foreach ( $guidList as $NotebookGUID ) {
 				if ( $this->_isValidNotebookGUID($NotebookGUID) ) {
-					saveSetting( $settingKey, $NotebookGUID, 0);
+					saveSetting( $CacheToken, $NotebookGUID, 0);
 				}
 			}
 
@@ -390,8 +397,8 @@ class evernote {
 	 */
 	private function _getSelectedNotebooks() {
 		writeNote( "Entered Function: _getSelectedNotebooks()" );
-		$settingKey = 'core_notebooks' . $this->settings['EVERNOTE_POINTER'];
-		$rVal = readSetting( $settingKey, '*' );
+		$CacheToken = $CacheToken = $this->settings['NOTEBOOK_TOKEN'];
+		$rVal = readSetting( $CacheToken, '*' );
 
 		// Return the Array
 		return $rVal;
@@ -620,9 +627,10 @@ class evernote {
 	 */
 	private function _refreshNote() {
 		$NoteGUID = sqlScrub($this->settings['guid']);
+		$SiteID = nullInt($this->settings['SiteID']);
 		writeNote( "_refreshNote: Refresh Note [$NoteGUID]" );
 		$rVal = false;
-		
+
 		// Don't Do Anything if the GUID is Invalid
 		if ( $NoteGUID == "" || strlen($NoteGUID) != 36 ) {
 			writeNote( "_refreshNote: Invalid GUID: $NoteGUID" );
@@ -638,8 +646,6 @@ class evernote {
 			$isOK = false;
 
 	        if ( $noteStoreShard != '' ) {
-                $settingKey = 'core_notes' . $this->settings['EVERNOTE_POINTER'];
-
 		        // Prepare the NoteStore
 		        if ( !$this->_prepNoteStore() ) {
 		        	writeNote( "_refreshNote: NoteStore Not Prepared" );
@@ -658,7 +664,7 @@ class evernote {
             					    " (SELECT count(m.`id`) FROM `Meta` m WHERE c.`id` = m.`ContentID`) as `MetaRecords`" .
             				  "  FROM `Content` c" .
             				  " WHERE c.`TypeCd` = 'POST' and c.`isReplaced` = 'N'" .
-            				  "   and c.`guid` = '$NoteGUID';";
+            				  "   and c.`SiteID` = $SiteID c.`guid` = '$NoteGUID';";
             		$rVal = doSQLQuery( $sqlStr );
             	}
 	        }
@@ -691,7 +697,8 @@ class evernote {
 	 * Note: ReadOnly = {TRUE} will return an array of notes (Name, GUID, CreateDTS, UpdateDTS)
 	 */
 	private function _collectNotes( $NotebookGUIDs, $ReadOnly = false ) {
-		$LastUpdSeqNo = nullInt(readSetting( 'cron', 'UpdateSequenceNo' ));
+		$CacheToken = $this->settings['CACHE_TOKEN'];
+		$LastUpdSeqNo = nullInt(readSetting( $CacheToken, 'UpdateSequenceNo' ));
 		$CurrUpdSeqNo = $MaxUpdSeqNo = 0;
 		$rVal = 0;
 
@@ -706,9 +713,6 @@ class evernote {
 			$isOK = false;
 
 	        if ( $noteStoreShard != '' ) {
-                $settingKey = 'core_notes' . $this->settings['EVERNOTE_POINTER'];
-
-		        // Prepare the NoteStore
 		        if ( !$this->_prepNoteStore() ) {
 			        return $rVal;
 		        }
@@ -765,7 +769,7 @@ class evernote {
 
 				// Save the New Update Sequence Number                
                 if ( $MaxUpdSeqNo > $LastUpdSeqNo ) {
-	                saveSetting( 'cron', 'UpdateSequenceNo', $MaxUpdSeqNo );
+	                saveSetting( $CacheToken, 'UpdateSequenceNo', $MaxUpdSeqNo );
                 }
 
                 // Debug Data
@@ -796,8 +800,9 @@ class evernote {
 	 * Function Checks to See if the Note Has Been Updated or Changed in Some Way through the Update Sequence ID
 	 */
 	private function _isNewNote( $NoteGUID, $UpdSeqID ) {
-		$rVal = true;
+		$SiteID = $this->settings['SiteID'];
 		$CurrSeqID = 0;
+		$rVal = true;
 
 		switch ( DB_TYPE ) {
 			case 1:
@@ -806,6 +811,7 @@ class evernote {
 					$this->tmp = array();
 					$sqlStr = "SELECT c.`id`, c.`guid`, c.`UpdateSeqID` FROM `Content` c" .
 							  " WHERE c.`isReplaced` = 'N' and c.`TypeCd` = 'POST'" .
+							  "   and c.`SiteID` = $SiteID" .
 							  " ORDER BY c.`CreateDTS` DESC";
 					$rslt = doSQLQuery( $sqlStr );
 					if ( is_array($rslt) ) {
@@ -822,7 +828,7 @@ class evernote {
 
 			case 2:
 				// NoteWorthy Store
-				$settingKey = 'core_notes' . $this->settings['EVERNOTE_POINTER'];
+				$settingKey = $this->settings['NOTES_TOKEN'];
 				$CurrSeqID = readSetting( $settingKey, $NoteGUID );
 				break;
 
@@ -889,16 +895,17 @@ class evernote {
 					/** MySQL **/
                     $ParentID = $this->_getPostParentIDFromGUID( $data['guid'] );
                     $DeleteDTS = ( $data['deleted'] > 0 ) ? "FROM_UNIXTIME(" . $data['deleted'] . ")" : "NULL";
+                    $SiteID = nullInt($this->settings['SiteID']);
 
                     $sqlStr = "INSERT INTO `Content` (`guid`, `TypeCd`, `Title`, `Value`, `Hash`, `ParentID`, `PostURL`, `PostAuthor`," . 
-                    								 "`UpdateSeqID`, `CreateDTS`, `UpdateDTS`, `DeleteDTS`) " .
+                    								 "`UpdateSeqID`, `SiteID`, `CreateDTS`, `UpdateDTS`, `DeleteDTS`) " .
                               "VALUES ( '" . $data['guid'] . "', " .
                                        "'POST', " .
                                        "'" . sqlScrub( $data['title'] ) . "', ".
                                        "'" . sqlScrub( $data['content'] ) . "', " .
                                        "'" . $data['contentHash'] . "', " .
                                        " $ParentID, '" . $data['url'] . "', '" . sqlScrub($data['author']) . "', " .
-                                       		 $data['updSeqID'] . ", " .
+                                       		 $data['updSeqID'] . ", $SiteID," .
                                        " FROM_UNIXTIME(" . $data['created'] . "), " .
                                        " FROM_UNIXTIME(" . $data['updated'] . "), " .
                                        " $DeleteDTS );";
@@ -989,11 +996,13 @@ class evernote {
      * Function Returns the Maximum Content.id Value for a given GUID
      */
     private function _getPostParentIDFromGUID( $NoteGUID ) {
+    	$SiteID = nullInt($this->settings['SiteID']);
         $rVal = 'NULL';
 
         if ( $NoteGUID ) {
         	$sqlStr = "SELECT max(`id`) as `MaxID` FROM `Content`" .
-        			  " WHERE `isReplaced` = 'N' and `guid` = '$NoteGUID'";
+        			  " WHERE `isReplaced` = 'N' and `SiteID` = $SiteID" .
+        			  "   and `guid` = '$NoteGUID'";
         	$rslt = doSQLQuery( $sqlStr );
 			if ( is_array($rslt) ) {
 				foreach ( $rslt as $Key=>$Row ) {
@@ -1232,9 +1241,12 @@ class evernote {
 	 */
 	private function _collectNoteContent( $NoteGUID, $NoteDTL ) {
 		$rVal = "";
-		
+
 		if ( $this->_prepNoteStore() ) {
 			$data = $this->noteStore->getNoteContent($this->settings['DEVELOPER_TOKEN'], $NoteGUID);
+
+			// Save the Raw Content if Needs Be
+			if ( DEBUG_ENABLED > 0 ) { writeEvernoteContent( $this->settings['SiteID'], $NoteGUID, $data ); }
 
 	        // Prep the finalized HTML
 			$Content = $this->_scrubContent( $data );
@@ -1347,6 +1359,11 @@ class evernote {
 		$inBlockquote = false;
 		$ScrubMax = 3;
 		$i = 0;
+		
+		// Save the Raw Data if DEBUG_ENABLED
+		if ( DEBUG_ENABLED > 0 ) {
+			
+		}
 
 		// Eliminate the <div style> Elements
         $pattern = "/<div(.*?)>(.*?)<\/p>/si";

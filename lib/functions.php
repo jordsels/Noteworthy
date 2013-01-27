@@ -9,31 +9,67 @@
  */
 require_once(LIB_DIR . '/globals.php');
 
+	/**
+	 *	Function returns the Current SiteID Based on the Current URL
+	 *	Note: Default Site is always 0
+	 */
+	function getSiteID() {
+		$Sites = readSetting( "SiteMaster", "*" );
+		$URL = "http://" . $_SERVER['SERVER_NAME'];
+		$rVal = 0;
+
+		if ( is_array($Sites) ) {
+			$SiteID = array_search($URL, $Sites);
+			
+			// If We Don't Have a Valid SiteID, Return the Default Site IDX
+			if ( $SiteID === false ) {
+				$SiteID = array_search('default', $Sites);
+			}
+			
+			// Set the Return Value
+			$rVal = nullInt($SiteID);
+		}
+
+		// Return the SiteID
+		return $rVal;
+	}
+
     /**
      *	Function returns the Site Details based on the SiteID Requested
      */
     function getSiteDetails( $SiteID = 0 ) {
-    	$RootURL = str_replace('/index.php', '', $_SERVER['SERVER_NAME'] . $_SERVER['PHP_SELF']);
-    	$SiteID = nullInt( $SiteID );
+    	if ( NoNull($SiteID) == "new" ) {
+	    	$SiteID = getNextSiteID();
+    	} else {
+	    	$SiteID = nullInt( $SiteID );
+    	}
+
     	$CacheToken = "Site_$SiteID";
     	$APIKey = readSetting( $CacheToken, 'api_key' );
-    	$SiteURL = NoNull(readSetting( $CacheToken, 'HomeURL' ), $RootURL);
-    	$doSave = false;
+    	$SiteURL = getSiteURLs( $SiteID );
+    	$doSave = $isDefault = false;
+    	$ContentDIR = "";
     	if ( $APIKey == "" ) {
     		$APIKey = getRandomString( 32, true);
     		$doSave = true;
+    		if ( $SiteID == 0 ) {
+	    		$ContentDIR = 'default';
+	    		$isDefault = true;
+    		} else {
+	    		$ContentDIR = substr("0000000$SiteID", strlen("00000000$SiteID") - 9);
+    		}
     	}
 
     	// Construct the Return Array
-        $rVal = array('URL'             => $SiteURL,
-		              'HomeURL'         => 'http://' . $SiteURL,
-		
-		              'api_url'         => 'http://' . $SiteURL . '/api/',
-		              'api_port'        => 80,
+        $rVal = array('URL'             => $SiteURL['URL'],
+		              'HomeURL'         => $SiteURL['HomeURL'],
+
+		              'api_url'         => $SiteURL['api_url'],
+		              'api_port'        => $SiteURL['api_port'],
 		              'api_key'         => $APIKey,
 		              'require_key'		=> 'Y',
 
-		              'ContentDIR'      => BASE_DIR . '/content/default',
+		              'ContentDIR'      => BASE_DIR . '/content/' . $ContentDIR,
 		              'AkismetKey'		=> '',
 
 		              'SiteID'			=> $SiteID,
@@ -42,7 +78,7 @@ require_once(LIB_DIR . '/globals.php');
 		              'SiteSEOTags'		=> 'Noteworthy',
 
 		              'Location'        => 'manifest',
-		              'isDefault'       => 'Y',
+		              'isDefault'       => BoolYN($isDefault),
 
 		              'doComments'		=> 'N',
 		              'DisqusID'     	=> '',
@@ -64,7 +100,7 @@ require_once(LIB_DIR . '/globals.php');
 		}
 		
 		// If this is the First Access for the SiteID, Save The Defaults
-		if ( $doSave ) {
+		if ( $doSave && $SiteID >= 0 ) {
 			foreach( $rVal as $Key=>$Val ) {
 				saveSetting( $CacheToken, $Key, $Val );
 			}
@@ -72,6 +108,30 @@ require_once(LIB_DIR . '/globals.php');
 
         // Return the Array of Site Details
         return $rVal;
+    }
+    
+    function getSiteURLs( $SiteID ) {
+	    $RootURL = str_replace('/index.php', '', $_SERVER['SERVER_NAME'] . $_SERVER['PHP_SELF']);
+	    $CacheToken = "Site_$SiteID";
+	    $SiteURL = NoNull(readSetting( $CacheToken, 'HomeURL' ));
+	    $rVal = array( 'URL'             => '',
+		               'HomeURL'         => '',
+		               'api_url'         => '',
+		               'api_port'        => 80
+		              );
+
+	    if ( $SiteURL == '' && $SiteID == 0 ) {
+		    $SiteURL = $RootURL;
+	    }
+
+	    if ( $SiteURL != '' ) {
+		    $rVal['URL'] = $SiteURL;
+		    $rVal['HomeURL'] = "http://$SiteURL";
+		    $rVal['api_url'] = "http://$SiteURL/api/";
+	    }
+
+	    // Return the Array of SiteURLs
+	    return $rVal;
     }
     
     function getSocialDefaults() {
@@ -95,6 +155,43 @@ require_once(LIB_DIR . '/globals.php');
 
 		// Return the Array
 		return $rVal;
+    }
+
+    /**
+     *	Function Returns an Array of Site_ Files in the Config Directory
+     */
+    function getSitesList() {
+    	$Excludes = array('.', '..', 'config.php');
+	    $rVal = array();
+
+		if ($handle = opendir( CONF_DIR )) {
+			while (false !== ($entry = readdir($handle))) {
+				if ( !in_array($entry, $Excludes) ) {
+					if ( substr($entry, 0, 5) == "Site_" ) {
+						$rVal[] = filter_var($entry, FILTER_SANITIZE_NUMBER_INT);
+					}
+				}
+			}
+			closedir($handle);
+		}
+
+	    // Return the List of Site Files
+	    return $rVal;
+    }
+
+    /**
+     *	Function Returns the Next SiteID Value
+     */
+    function getNextSiteID() {
+	    $Sites = getSitesList();
+	    $rVal = -1;
+
+	    foreach ( $Sites as $Site ) {
+		    if ( nullInt($Site) > $rVal ) { $rVal = nullInt($Site) + 1; }
+	    }
+
+	    // Return the Next Site ID
+	    return $rVal;
     }
 
     /**
@@ -1247,6 +1344,28 @@ require_once(LIB_DIR . '/globals.php');
 	    // Return the Boolean Response
 	    return $rVal;
 
+    }
+
+    /***********************************************************************
+     *  Evernote Raw File Handling
+     ***********************************************************************/
+    /**
+     * Function Records a Raw Note to the Appropriate Location and Returns a
+     *		boolean Response
+     */
+    function writeEvernoteContent( $SiteID, $NoteGUID, $Content ) {
+        if ( DEBUG_ENABLED != 0 || $doOverride === true ) {
+	        $SiteData = getSiteDetails( $SiteID );
+	        $NotePath = $SiteData['ContentDIR'] . "/raw";
+
+	        if ( checkDIRExists($NotePath) ) {
+	        	$FileName = $NotePath . "/$NoteGUID.inc";
+
+	    		$fh = fopen($FileName, 'a');
+	    		fwrite($fh, $Content);
+	    		fclose($fh);
+	        }
+        }
     }
 
     /***********************************************************************

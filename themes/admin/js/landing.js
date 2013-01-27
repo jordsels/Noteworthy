@@ -1,5 +1,3 @@
-var _canSubmit = true;
-
 /* ******************************************* *
  *      General Settings Page Functions
  * ******************************************* */
@@ -16,11 +14,9 @@ function getPostsList( Page ) {
         data: params,
         success: function( data ) {
             parsePostsResult( data.data );
-            _canSubmit = true;
         },
         error: function (xhr, ajaxOptions, thrownError){
-            alert(xhr.status + ' | ' + thrownError);
-            _canSubmit = true;
+            formatErrorMsg(xhr.status, thrownError, '');
         },
         dataType: "json"
     });
@@ -39,11 +35,9 @@ function refreshPost( guid ) {
         data: params,
         success: function( data ) {
             parseRefreshResult( data.data );
-            _canSubmit = true;
         },
         error: function (xhr, ajaxOptions, thrownError){
-            alert(xhr.status + ' | ' + thrownError);
-            _canSubmit = true;
+            formatErrorMsg(xhr.status, thrownError, '');
         },
         dataType: "json"
     });
@@ -236,4 +230,14 @@ function parseRefreshResult( data ) {
 function showZeroPostDiv() {
 	document.getElementById("posts-block").style.display = 'none';
 	document.getElementById("first-block").style.display = 'block';
+}
+
+function formatErrorMsg(ErrorCode, ErrorMsg, ObjectID) {
+	if ( ErrorMsg != "") {
+		if ( ObjectID == "" ) {
+			alert(ErrorCode + ' | ' + ErrorMsg);
+		} else {
+			document.getElementById( ObjectID ).innerHTML = '<div class="sys-message sys-error"><p>' + ErrorMsg + '</p></div>';
+		}
+	}
 }
